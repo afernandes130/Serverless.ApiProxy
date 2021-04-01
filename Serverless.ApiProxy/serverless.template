@@ -1,0 +1,84 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Transform": "AWS::Serverless-2016-10-31",
+  "Description": "An AWS Serverless Application that uses the ASP.NET Core framework running in Amazon Lambda.",
+  "Parameters": {},
+  "Conditions": {},
+  "Resources": {
+  "ApiGatewayApi": {
+    "Type": "AWS::Serverless::Api",
+    "Properties": { 
+        "StageName" : "prod",
+        "Variables" : {
+          "lambdaAlias":"prod"
+        },
+        "Auth" : {
+          "Authorizers": {
+            "MyCognitoAuthorizer": {
+              "UserPoolArn": "arn:aws:cognito-idp:us-west-2:744929230126:userpool/us-west-2_mNB4aTf94"
+            }
+          }
+          
+        }
+      }
+    },
+  "AspNetCoreFunction": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+      "FunctionName" : "fncProxyTeste",
+        "Handler": "Serverless.ApiProxy::Serverless.ApiProxy.LambdaEntryPoint::FunctionHandlerAsync",
+        "Runtime": "dotnetcore3.1",
+        "CodeUri": "",
+        "MemorySize": 256,
+        "Timeout": 30,
+        "Role": null,
+        "AutoPublishAlias" : "TESTE",
+        "Policies": [
+          "AWSLambda_FullAccess",
+          "AmazonDynamoDBFullAccess"
+        ],
+        "Events": {
+          "ProxyResource": {
+            "Type": "Api",
+            "Properties": {
+              "Auth" : {"Authorizer" : "MyCognitoAuthorizer"},
+              "RestApiId": { "Ref" : "ApiGatewayApi" },
+              "Path": "{proxy+}",
+              "Method": "ANY"
+            }
+          },
+          "RootResource": {
+            "Type": "Api",
+            "Properties": {
+              "RestApiId": { "Ref" : "ApiGatewayApi" },
+              
+              "Path": "/",
+              "Method": "ANY"
+            }
+          }
+        }
+      }
+    },
+  "AspNetCoreFunctionVersion":{
+   "Type" : "AWS::Lambda::Version",
+   "Properties" : {
+     "FunctionName" : { "Ref" : "AspNetCoreFunction" }
+    }
+  },
+  "AspNetCoreFunctionAliasDev": {
+    "Type": "AWS::Lambda::Alias",
+    "Properties" : {
+      "Name" : "dev",
+      "FunctionName" : { "Ref" : "AspNetCoreFunction" },
+      "FunctionVersion" : "$LATEST"
+    } 
+  },
+  "AspNetCoreFunctionAliasProd": {
+    "Type": "AWS::Lambda::Alias",
+    "Properties" : {
+      "Name" : "prod",
+      "FunctionName" : { "Ref" : "AspNetCoreFunction" },
+      "FunctionVersion" : "$LATEST"}
+    }
+  }
+}
